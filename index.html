@@ -154,6 +154,11 @@
             🔄 Testing connection...
         </div>
         
+        <div style="text-align: center; margin: 10px 0; font-size: 12px; color: #666;">
+            Browser: <span id="browserInfo"></span> | 
+            💡 For best results use Safari or Firefox. Chrome may have caching issues.
+        </div>
+        
         <div class="settings">
             <label for="scannerLocation">Scanner Location:</label>
             <select id="scannerLocation">
@@ -188,6 +193,7 @@
             <button onclick="startScanning()">Start Scanner</button>
             <button onclick="stopScanning()">Stop Scanner</button>
             <button onclick="refreshStats()">Refresh Stats</button>
+            <button onclick="testConnection()" style="background: #dc3545;">🔧 Test Connection</button>
         </div>
         
         <div id="reader"></div>
@@ -205,24 +211,104 @@
         
         // Test connection on page load
         window.onload = function() {
+            // Detect browser
+            const browserInfo = getBrowserInfo();
+            document.getElementById('browserInfo').textContent = browserInfo;
+            
             testConnection();
             refreshStats();
         };
         
+        function getBrowserInfo() {
+            const userAgent = navigator.userAgent;
+            if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) {
+                return 'Chrome (may have caching issues)';
+            } else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) {
+                return 'Safari (recommended)';
+            } else if (userAgent.includes('Firefox')) {
+                return 'Firefox (recommended)';
+            } else if (userAgent.includes('Edg')) {
+                return 'Edge';
+            } else {
+                return 'Unknown';
+            }
+        }
+        
         async function testConnection() {
-            try {
-                const response = await fetch(API_URL + '?test=true');
-                if (response.ok) {
-                    connectionStatus = true;
-                    document.getElementById('connectionStatus').innerHTML = '✅ Connected to database';
-                    document.getElementById('connectionStatus').className = 'connection-status connected';
-                } else {
-                    throw new Error('Connection failed');
-                }
-            } catch (error) {
+            const statusElement = document.getElementById('connectionStatus');
+            
+            // Check if API_URL is configured
+            if (API_URL === 'VERVANG_MET_JOUW_GOOGLE_APPS_SCRIPT_URL') {
                 connectionStatus = false;
-                document.getElementById('connectionStatus').innerHTML = '❌ Database connection failed';
-                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+                statusElement.innerHTML = '❌ API URL not configured! Edit the code.';
+                statusElement.className = 'connection-status disconnected';
+                return;
+            }
+            
+            try {
+                statusElement.innerHTML = '🔄 Testing database connection...';
+                statusElement.className = 'connection-status';
+                
+                console.log('Testing API URL:', API_URL);
+                
+                // Add cache busting and timeout for better Chrome compatibility
+                const testUrl = API_URL + '?test=' + new Date().getTime();
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+                
+                const response = await fetch(testUrl, {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    redirect: 'follow',
+                    signal: controller.signal,
+                    headers: {
+                        'Accept': 'application/json,text/plain,*/*',
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+                
+                clearTimeout(timeoutId);
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+                
+                // Try to parse as JSON
+                const data = JSON.parse(responseText);
+                console.log('Parsed data:', data);
+                
+                connectionStatus = true;
+                statusElement.innerHTML = '✅ Connected to database - Ready to scan!';
+                statusElement.className = 'connection-status connected';
+                
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                connectionStatus = false;
+                
+                let errorMessage = '❌ Database connection failed: ';
+                
+                if (error.name === 'AbortError') {
+                    errorMessage += 'Timeout error. Try refreshing the page. If using Chrome, try Safari/Firefox instead.';
+                } else if (error.name === 'SyntaxError') {
+                    errorMessage += 'Server returned HTML instead of JSON. Check your Google Apps Script deployment.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage += 'Network error. If using Chrome, try clearing cache or use Incognito mode.';
+                } else if (error.message.includes('CORS')) {
+                    errorMessage += 'CORS error. Re-deploy your Google Apps Script.';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                statusElement.innerHTML = errorMessage + '<br><small>💡 Try testing in Safari or Firefox if Chrome doesn\'t work.</small>';
+                statusElement.className = 'connection-status disconnected';
             }
         }
         
@@ -293,17 +379,24 @@
                     device: device
                 });
                 
-                // Use fetch with a timeout
+                // Use fetch with cache busting and timeout for Chrome compatibility
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
                 
-                const response = await fetch(API_URL, {
+                const postUrl = API_URL + '?t=' + new Date().getTime(); // Cache busting
+                
+                const response = await fetch(postUrl, {
                     method: 'POST',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    redirect: 'follow',
+                    signal: controller.signal,
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json,text/plain,*/*',
+                        'Cache-Control': 'no-cache'
                     },
-                    body: requestData,
-                    signal: controller.signal
+                    body: requestData
                 });
                 
                 clearTimeout(timeoutId);
@@ -334,23 +427,40 @@
                 console.error('Error processing QR code:', error);
                 
                 if (error.name === 'AbortError') {
-                    showResult('❌ Request timeout. Check your internet connection.', 'error');
+                    showResult(`❌ Request timeout for QR code: "${qrCode}". Check your internet connection or try a different browser.`, 'error');
                 } else if (error.message.includes('Failed to fetch')) {
-                    showResult(`❌ Network error. QR code: "${qrCode}" could not be processed.`, 'error');
+                    showResult(`❌ Network error processing QR code: "${qrCode}". If using Chrome, try Safari or clear Chrome's cache.`, 'error');
                 } else {
                     showResult(`❌ Error: ${error.message}`, 'error');
                 }
                 
                 // Update connection status
                 connectionStatus = false;
-                document.getElementById('connectionStatus').innerHTML = '❌ Connection lost';
+                document.getElementById('connectionStatus').innerHTML = '❌ Connection lost - click Test Connection';
                 document.getElementById('connectionStatus').className = 'connection-status disconnected';
             }
         }
         
         async function refreshStats() {
             try {
-                const response = await fetch(API_URL + '?stats=true');
+                // Add cache busting for Chrome compatibility
+                const statsUrl = API_URL + '?stats=' + new Date().getTime();
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                
+                const response = await fetch(statsUrl, {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    signal: controller.signal,
+                    headers: {
+                        'Accept': 'application/json,text/plain,*/*',
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+                
+                clearTimeout(timeoutId);
                 
                 if (!response.ok) {
                     throw new Error('Stats request failed');
@@ -364,9 +474,15 @@
                 
             } catch (error) {
                 console.error('Error loading stats:', error);
-                document.getElementById('totalCount').textContent = 'Error';
-                document.getElementById('usedCount').textContent = 'Error';
-                document.getElementById('remainingCount').textContent = 'Check';
+                if (error.name === 'AbortError') {
+                    document.getElementById('totalCount').textContent = 'Timeout';
+                    document.getElementById('usedCount').textContent = 'Error';
+                    document.getElementById('remainingCount').textContent = 'Check';
+                } else {
+                    document.getElementById('totalCount').textContent = 'Error';
+                    document.getElementById('usedCount').textContent = 'Error';
+                    document.getElementById('remainingCount').textContent = 'Check';
+                }
             }
         }
         
