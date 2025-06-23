@@ -6,194 +6,209 @@
     <title>Dorpsfeest Santpoort - QR Scanner</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
+            font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            padding: 20px;
         }
         
         .container {
+            max-width: 600px;
+            margin: 0 auto;
             background: white;
             border-radius: 15px;
             padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         }
         
         h1 {
             color: #333;
             text-align: center;
             margin-bottom: 30px;
+            font-size: 24px;
         }
         
-        #reader {
-            width: 100%;
-            margin: 20px 0;
-        }
-        
-        .result {
-            margin-top: 20px;
+        .status-bar {
+            background: #f8f9fa;
             padding: 15px;
             border-radius: 8px;
-            font-weight: bold;
+            margin-bottom: 20px;
             text-align: center;
+            font-weight: bold;
         }
         
-        .success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
+        .status-bar.connected { background: #d4edda; color: #155724; }
+        .status-bar.error { background: #f8d7da; color: #721c24; }
+        .status-bar.loading { background: #d1ecf1; color: #0c5460; }
         
         .settings {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
             margin-bottom: 20px;
         }
         
-        .settings input, .settings select {
-            width: 100%;
-            padding: 10px;
-            margin: 5px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            box-sizing: border-box;
+        .form-group {
+            margin-bottom: 15px;
         }
         
-        .settings label {
+        label {
             display: block;
-            margin-top: 10px;
+            margin-bottom: 5px;
             font-weight: bold;
             color: #333;
         }
         
-        .stats {
-            display: flex;
-            justify-content: space-around;
-            margin: 20px 0;
-            text-align: center;
+        select, input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
         }
         
-        .stat-box {
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
             background: #f8f9fa;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
+            text-align: center;
             border: 1px solid #dee2e6;
         }
         
         .stat-number {
-            font-size: 24px;
+            font-size: 32px;
             font-weight: bold;
             color: #495057;
+            display: block;
         }
         
         .stat-label {
-            font-size: 12px;
+            font-size: 14px;
             color: #6c757d;
             margin-top: 5px;
         }
         
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
         button {
-            background: #667eea;
-            color: white;
+            padding: 15px;
             border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
-            cursor: pointer;
+            border-radius: 8px;
             font-size: 16px;
-            margin: 5px;
-        }
-        
-        button:hover {
-            background: #5a6fd8;
-        }
-        
-        .button-group {
-            text-align: center;
-            margin: 20px 0;
-        }
-        
-        .connection-status {
-            text-align: center;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
             font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
         
-        .connected {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        .btn-primary { background: #007bff; color: white; }
+        .btn-primary:hover { background: #0056b3; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #545b62; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #1e7e34; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        
+        #reader {
+            width: 100%;
+            margin: 20px 0;
+            border-radius: 8px;
+            overflow: hidden;
         }
         
-        .disconnected {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        .result {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .result.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .result.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .result.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        
+        .api-config {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .api-config h3 { margin-bottom: 10px; color: #856404; }
+        .api-config input { margin-bottom: 10px; }
+        
+        @media (max-width: 600px) {
+            .container { padding: 20px; margin: 10px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .buttons { grid-template-columns: 1fr; }
+            h1 { font-size: 20px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎪 Dorpsfeest Santpoort<br>QR Scanner</h1>
+        <h1>🎪 Dorpsfeest Santpoort<br>QR Code Scanner</h1>
         
-        <div id="connectionStatus" class="connection-status">
-            🔄 Testing connection...
+        <div class="api-config">
+            <h3>📡 API Configuration</h3>
+            <input type="text" id="apiUrl" placeholder="Paste your Google Apps Script URL here" />
+            <button onclick="saveAndTestApi()" class="btn-primary" style="width: 100%;">💾 Save & Test API Connection</button>
         </div>
         
-        <div style="text-align: center; margin: 10px 0; font-size: 12px; color: #666;">
-            Browser: <span id="browserInfo"></span> | 
-            💡 For best results use Safari or Firefox. Chrome may have caching issues.
+        <div id="statusBar" class="status-bar loading">
+            🔄 Enter your Google Apps Script URL above
         </div>
         
         <div class="settings">
-            <label for="scannerLocation">Scanner Location:</label>
-            <select id="scannerLocation">
-                <option value="Entrance">Entrance</option>
-                <option value="Bar">Bar</option>
-                <option value="Food Stand">Food Stand</option>
-                <option value="Activity Area">Activity Area</option>
-                <option value="Exit">Exit</option>
-                <option value="Other">Other</option>
-            </select>
-            
-            <label for="deviceName">Device Name (optional):</label>
-            <input type="text" id="deviceName" placeholder="e.g., Phone 1, Tablet A, etc.">
+            <h3>⚙️ Scanner Settings</h3>
+            <div class="form-group">
+                <label for="location">Scanner Location:</label>
+                <select id="location">
+                    <option value="Main Entrance">Main Entrance</option>
+                    <option value="Bar Area">Bar Area</option>
+                    <option value="Food Court">Food Court</option>
+                    <option value="Activity Zone">Activity Zone</option>
+                    <option value="Exit">Exit</option>
+                    <option value="VIP Area">VIP Area</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="deviceName">Device Name (optional):</label>
+                <input type="text" id="deviceName" placeholder="e.g., iPhone-John, Tablet-1, etc." />
+            </div>
         </div>
         
-        <div class="stats" id="stats">
-            <div class="stat-box">
-                <div class="stat-number" id="totalCount">-</div>
-                <div class="stat-label">Codes Scanned</div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-number" id="totalScans">-</span>
+                <div class="stat-label">Total Scans</div>
             </div>
-            <div class="stat-box">
-                <div class="stat-number" id="usedCount">-</div>
-                <div class="stat-label">Total Entries</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-number" id="remainingCount">-</div>
+            <div class="stat-card">
+                <span class="stat-number" id="systemStatus">-</span>
                 <div class="stat-label">System Status</div>
             </div>
         </div>
         
-        <div class="button-group">
-            <button onclick="startScanning()">Start Scanner</button>
-            <button onclick="stopScanning()">Stop Scanner</button>
-            <button onclick="refreshStats()">Refresh Stats</button>
-            <button onclick="testConnection()" style="background: #dc3545;">🔧 Test Connection</button>
+        <div class="buttons">
+            <button onclick="startScanning()" class="btn-success">📱 Start Scanner</button>
+            <button onclick="stopScanning()" class="btn-danger">⏹️ Stop Scanner</button>
         </div>
         
         <div id="reader"></div>
@@ -202,144 +217,84 @@
     </div>
 
     <script>
-        // REPLACE THIS URL WITH YOUR ACTUAL GOOGLE APPS SCRIPT URL
-        const API_URL = 'https://script.google.com/macros/s/AKfycbwDpinJAUIZCp3Cw9kEC-Zq82DevAd_OcDAJ9ey1Gfx604l1d-VciX5bB3RhGqQnLKQ/exec';
-        
         let html5QrcodeScanner = null;
         let isScanning = false;
-        let connectionStatus = false;
+        let apiConnected = false;
+        let API_URL = '';
         
-        // Test connection on page load
+        // Load saved API URL
         window.onload = function() {
-            // Detect browser
-            const browserInfo = getBrowserInfo();
-            document.getElementById('browserInfo').textContent = browserInfo;
-            
-            testConnection();
-            refreshStats();
+            const savedUrl = localStorage.getItem('qr_scanner_api_url');
+            if (savedUrl) {
+                document.getElementById('apiUrl').value = savedUrl;
+                API_URL = savedUrl;
+                testApiConnection();
+            }
         };
         
-        function getBrowserInfo() {
-            const userAgent = navigator.userAgent;
-            if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) {
-                return 'Chrome (may have caching issues)';
-            } else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) {
-                return 'Safari (recommended)';
-            } else if (userAgent.includes('Firefox')) {
-                return 'Firefox (recommended)';
-            } else if (userAgent.includes('Edg')) {
-                return 'Edge';
-            } else {
-                return 'Unknown';
-            }
-        }
-        
-        async function testConnection() {
-            const statusElement = document.getElementById('connectionStatus');
+        async function saveAndTestApi() {
+            const urlInput = document.getElementById('apiUrl');
+            const url = urlInput.value.trim();
             
-            // Check if API_URL is configured
-            if (API_URL === 'VERVANG_MET_JOUW_GOOGLE_APPS_SCRIPT_URL') {
-                connectionStatus = false;
-                statusElement.innerHTML = '❌ API URL not configured! Edit the code.';
-                statusElement.className = 'connection-status disconnected';
+            if (!url) {
+                showStatus('❌ Please enter your Google Apps Script URL', 'error');
                 return;
             }
             
+            if (!url.includes('script.google.com') || !url.includes('/exec')) {
+                showStatus('⚠️ URL should be from script.google.com and end with /exec', 'error');
+                return;
+            }
+            
+            API_URL = url;
+            localStorage.setItem('qr_scanner_api_url', url);
+            
+            await testApiConnection();
+        }
+        
+        async function testApiConnection() {
+            if (!API_URL) return;
+            
+            showStatus('🔄 Testing API connection...', 'loading');
+            
             try {
-                statusElement.innerHTML = '🔄 Testing database connection...';
-                statusElement.className = 'connection-status';
-                
-                console.log('Testing API URL:', API_URL);
-                
-                // Add cache busting and timeout for better Chrome compatibility
-                const testUrl = API_URL + '?test=' + new Date().getTime();
-                
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-                
-                const response = await fetch(testUrl, {
+                const response = await fetch(API_URL + '?test=' + Date.now(), {
                     method: 'GET',
                     mode: 'cors',
-                    cache: 'no-cache',
-                    redirect: 'follow',
-                    signal: controller.signal,
-                    headers: {
-                        'Accept': 'application/json,text/plain,*/*',
-                        'Cache-Control': 'no-cache'
-                    }
+                    cache: 'no-cache'
                 });
-                
-                clearTimeout(timeoutId);
-                
-                console.log('Response status:', response.status);
-                console.log('Response headers:', [...response.headers.entries()]);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
-                const responseText = await response.text();
-                console.log('Response text:', responseText);
+                const data = await response.json();
                 
-                // Try to parse as JSON
-                const data = JSON.parse(responseText);
-                console.log('Parsed data:', data);
-                
-                connectionStatus = true;
-                statusElement.innerHTML = '✅ Connected to database - Ready to scan!';
-                statusElement.className = 'connection-status connected';
+                apiConnected = true;
+                showStatus('✅ API Connected - Ready to scan!', 'connected');
+                updateStats(data.total || 0);
                 
             } catch (error) {
-                console.error('Connection test failed:', error);
-                connectionStatus = false;
+                apiConnected = false;
+                console.error('API test failed:', error);
                 
-                let errorMessage = '❌ Database connection failed: ';
-                
-                if (error.name === 'AbortError') {
-                    errorMessage += 'Timeout error. Try refreshing the page. If using Chrome, try Safari/Firefox instead.';
-                } else if (error.name === 'SyntaxError') {
-                    errorMessage += 'Server returned HTML instead of JSON. Check your Google Apps Script deployment.';
-                } else if (error.message.includes('Failed to fetch')) {
-                    errorMessage += 'Network error. If using Chrome, try clearing cache or use Incognito mode.';
-                } else if (error.message.includes('CORS')) {
-                    errorMessage += 'CORS error. Re-deploy your Google Apps Script.';
+                if (error.message.includes('Failed to fetch')) {
+                    showStatus('❌ Connection failed. Check your URL and try again.', 'error');
                 } else {
-                    errorMessage += error.message;
+                    showStatus(`❌ API Error: ${error.message}`, 'error');
                 }
-                
-                statusElement.innerHTML = errorMessage + '<br><small>💡 Try testing in Safari or Firefox if Chrome doesn\'t work.</small>';
-                statusElement.className = 'connection-status disconnected';
+                updateStats('Error');
             }
-        }
-        
-        function onScanSuccess(decodedText, decodedResult) {
-            console.log(`QR Code detected: ${decodedText}`, decodedResult);
-            
-            if (!connectionStatus) {
-                showResult('❌ No database connection. Cannot process QR code.', 'error');
-                return;
-            }
-            
-            // Get scanner settings
-            const location = document.getElementById('scannerLocation').value;
-            const device = document.getElementById('deviceName').value || 'Unknown Device';
-            
-            // Send to Google Apps Script
-            processQRCode(decodedText, location, device);
-        }
-        
-        function onScanFailure(error) {
-            // Handle scan failure - usually not a problem, just no QR code in view
         }
         
         function startScanning() {
-            if (isScanning) {
-                showResult('Scanner is already running!', 'info');
+            if (!apiConnected) {
+                showResult('❌ Cannot start: API not connected!', 'error');
                 return;
             }
             
-            if (!connectionStatus) {
-                showResult('❌ Cannot start scanner: No database connection!', 'error');
+            if (isScanning) {
+                showResult('ℹ️ Scanner is already running', 'info');
                 return;
             }
             
@@ -347,197 +302,121 @@
                 fps: 10,
                 qrbox: { width: 250, height: 250 },
                 rememberLastUsedCamera: true,
-                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+                showTorchButtonIfSupported: true
             };
             
             html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
             html5QrcodeScanner.render(onScanSuccess, onScanFailure);
             isScanning = true;
-            showResult('Scanner started! Point camera at QR code.', 'info');
+            
+            showResult('📱 Scanner started! Point camera at QR code', 'info');
         }
         
         function stopScanning() {
             if (html5QrcodeScanner && isScanning) {
                 html5QrcodeScanner.clear().then(() => {
                     isScanning = false;
-                    showResult('Scanner stopped.', 'info');
+                    showResult('⏹️ Scanner stopped', 'info');
                 }).catch(err => {
                     console.error('Error stopping scanner:', err);
                 });
-            } else {
-                showResult('Scanner is not running.', 'info');
             }
+        }
+        
+        function onScanSuccess(decodedText, decodedResult) {
+            if (!apiConnected) {
+                showResult('❌ API not connected - cannot process scan', 'error');
+                return;
+            }
+            
+            const location = document.getElementById('location').value;
+            const device = document.getElementById('deviceName').value || 'Unknown Device';
+            
+            processQRCode(decodedText, location, device);
+        }
+        
+        function onScanFailure(error) {
+            // Ignore scan failures - just means no QR code in view
         }
         
         async function processQRCode(qrCode, location, device) {
+            showResult('🔄 Processing QR code...', 'info');
+            
             try {
-                showResult('Processing QR code...', 'info');
-                
-                const requestData = JSON.stringify({
-                    qrCode: qrCode,
-                    location: location,
-                    device: device
-                });
-                
-                // Use fetch with cache busting and timeout for Chrome compatibility
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-                
-                const postUrl = API_URL + '?t=' + new Date().getTime(); // Cache busting
-                
-                const response = await fetch(postUrl, {
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     mode: 'cors',
-                    cache: 'no-cache',
-                    redirect: 'follow',
-                    signal: controller.signal,
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json,text/plain,*/*',
-                        'Cache-Control': 'no-cache'
                     },
-                    body: requestData
+                    body: JSON.stringify({
+                        qrCode: qrCode,
+                        location: location,
+                        device: device
+                    })
                 });
                 
-                clearTimeout(timeoutId);
-                
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const responseText = await response.text();
-                let data;
-                
-                try {
-                    data = JSON.parse(responseText);
-                } catch (parseError) {
-                    throw new Error('Server returned invalid response format');
-                }
-                
-                if (data.success) {
-                    showResult(`✅ SUCCESS: ${data.message}`, 'success');
-                    playSuccessSound();
-                    setTimeout(refreshStats, 1000);
-                } else {
-                    showResult(`❌ ERROR: ${data.message}`, 'error');
-                    playErrorSound();
-                }
-                
-            } catch (error) {
-                console.error('Error processing QR code:', error);
-                
-                if (error.name === 'AbortError') {
-                    showResult(`❌ Request timeout for QR code: "${qrCode}". Check your internet connection or try a different browser.`, 'error');
-                } else if (error.message.includes('Failed to fetch')) {
-                    showResult(`❌ Network error processing QR code: "${qrCode}". If using Chrome, try Safari or clear Chrome's cache.`, 'error');
-                } else {
-                    showResult(`❌ Error: ${error.message}`, 'error');
-                }
-                
-                // Update connection status
-                connectionStatus = false;
-                document.getElementById('connectionStatus').innerHTML = '❌ Connection lost - click Test Connection';
-                document.getElementById('connectionStatus').className = 'connection-status disconnected';
-            }
-        }
-        
-        async function refreshStats() {
-            try {
-                // Add cache busting for Chrome compatibility
-                const statsUrl = API_URL + '?stats=' + new Date().getTime();
-                
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000);
-                
-                const response = await fetch(statsUrl, {
-                    method: 'GET',
-                    mode: 'cors',
-                    cache: 'no-cache',
-                    signal: controller.signal,
-                    headers: {
-                        'Accept': 'application/json,text/plain,*/*',
-                        'Cache-Control': 'no-cache'
-                    }
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (!response.ok) {
-                    throw new Error('Stats request failed');
+                    throw new Error(`HTTP ${response.status}`);
                 }
                 
                 const data = await response.json();
                 
-                document.getElementById('totalCount').textContent = data.used || '0';
-                document.getElementById('usedCount').textContent = data.used || '0';
-                document.getElementById('remainingCount').textContent = 'Active';
+                if (data.success) {
+                    showResult(`✅ SUCCESS: ${data.message}`, 'success');
+                    playSound(true);
+                    
+                    // Refresh stats
+                    setTimeout(testApiConnection, 1000);
+                } else {
+                    showResult(`❌ ${data.message}`, 'error');
+                    playSound(false);
+                }
                 
             } catch (error) {
-                console.error('Error loading stats:', error);
-                if (error.name === 'AbortError') {
-                    document.getElementById('totalCount').textContent = 'Timeout';
-                    document.getElementById('usedCount').textContent = 'Error';
-                    document.getElementById('remainingCount').textContent = 'Check';
-                } else {
-                    document.getElementById('totalCount').textContent = 'Error';
-                    document.getElementById('usedCount').textContent = 'Error';
-                    document.getElementById('remainingCount').textContent = 'Check';
-                }
+                showResult(`❌ Processing failed: ${error.message}`, 'error');
+                playSound(false);
             }
+        }
+        
+        function showStatus(message, type) {
+            const statusBar = document.getElementById('statusBar');
+            statusBar.textContent = message;
+            statusBar.className = `status-bar ${type}`;
         }
         
         function showResult(message, type) {
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = `<div class="result ${type}">${message}</div>`;
             
-            // Auto-hide after 5 seconds for info messages
             if (type === 'info') {
-                setTimeout(() => {
-                    resultDiv.innerHTML = '';
-                }, 5000);
+                setTimeout(() => resultDiv.innerHTML = '', 3000);
             }
         }
         
-        // Optional: Sound feedback
-        function playSuccessSound() {
-            // Simple beep using Web Audio API
-            try {
-                const context = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = context.createOscillator();
-                const gain = context.createGain();
-                
-                oscillator.connect(gain);
-                gain.connect(context.destination);
-                
-                oscillator.frequency.setValueAtTime(800, context.currentTime);
-                gain.gain.setValueAtTime(0.1, context.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
-                
-                oscillator.start(context.currentTime);
-                oscillator.stop(context.currentTime + 0.3);
-            } catch (e) {
-                console.log('Sound not supported');
-            }
+        function updateStats(total) {
+            document.getElementById('totalScans').textContent = total;
+            document.getElementById('systemStatus').textContent = apiConnected ? 'Online' : 'Offline';
         }
         
-        function playErrorSound() {
-            // Lower pitched error sound
+        function playSound(success) {
             try {
-                const context = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = context.createOscillator();
-                const gain = context.createGain();
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
                 
-                oscillator.connect(gain);
-                gain.connect(context.destination);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
                 
-                oscillator.frequency.setValueAtTime(300, context.currentTime);
-                gain.gain.setValueAtTime(0.1, context.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
+                oscillator.frequency.setValueAtTime(success ? 800 : 300, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
                 
-                oscillator.start(context.currentTime);
-                oscillator.stop(context.currentTime + 0.5);
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
             } catch (e) {
-                console.log('Sound not supported');
+                // Sound not supported
             }
         }
     </script>
