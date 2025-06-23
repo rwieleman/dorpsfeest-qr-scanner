@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dorpsfeest Santpoort - QR Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        #reader {
+            width: 100%;
+            margin: 20px 0;
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .settings {
+            margin-bottom: 20px;
+        }
+        
+        .settings input, .settings select {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        
+        .settings label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #5a6fd8;
+        }
+        
+        .button-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .connection-status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎪 Dorpsfeest Santpoort<br>QR Scanner</h1>
+        
+        <div id="connectionStatus" class="connection-status">
+            🔄 Testing connection...
+        </div>
+        
+        <div class="settings">
+            <label for="scannerLocation">Scanner Location:</label>
+            <select id="scannerLocation">
+                <option value="Entrance">Entrance</option>
+                <option value="Bar">Bar</option>
+                <option value="Food Stand">Food Stand</option>
+                <option value="Activity Area">Activity Area</option>
+                <option value="Exit">Exit</option>
+                <option value="Other">Other</option>
+            </select>
+            
+            <label for="deviceName">Device Name (optional):</label>
+            <input type="text" id="deviceName" placeholder="e.g., Phone 1, Tablet A, etc.">
+        </div>
+        
+        <div class="stats" id="stats">
+            <div class="stat-box">
+                <div class="stat-number" id="totalCount">-</div>
+                <div class="stat-label">Codes Scanned</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="usedCount">-</div>
+                <div class="stat-label">Total Entries</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="remainingCount">-</div>
+                <div class="stat-label">System Status</div>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button onclick="startScanning()">Start Scanner</button>
+            <button onclick="stopScanning()">Stop Scanner</button>
+            <button onclick="refreshStats()">Refresh Stats</button>
+        </div>
+        
+        <div id="reader"></div>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // REPLACE THIS URL WITH YOUR ACTUAL GOOGLE APPS SCRIPT URL
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyFZkjvkTpDyfbIgZh5nB_3n6f7JJ_xvL3IvBsRSgMMRqtNoceKuExtKVWXuNI-rBilIw/exec';
+        
+        let html5QrcodeScanner = null;
+        let isScanning = false;
+        let connectionStatus = false;
+        
+        // Test connection on page load
+        window.onload = function() {
+            testConnection();
+            refreshStats();
+        };
+        
+        async function testConnection() {
+            try {
+                const response = await fetch(API_URL + '?test=true');
+                if (response.ok) {
+                    connectionStatus = true;
+                    document.getElementById('connectionStatus').innerHTML = '✅ Connected to database';
+                    document.getElementById('connectionStatus').className = 'connection-status connected';
+                } else {
+                    throw new Error('Connection failed');
+                }
+            } catch (error) {
+                connectionStatus = false;
+                document.getElementById('connectionStatus').innerHTML = '❌ Database connection failed';
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+            }
+        }
+        
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log(`QR Code detected: ${decodedText}`, decodedResult);
+            
+            if (!connectionStatus) {
+                showResult('❌ No database connection. Cannot process QR code.', 'error');
+                return;
+            }
+            
+            // Get scanner settings
+            const location = document.getElementById('scannerLocation').value;
+            const device = document.getElementById('deviceName').value || 'Unknown Device';
+            
+            // Send to Google Apps Script
+            processQRCode(decodedText, location, device);
+        }
+        
+        function onScanFailure(error) {
+            // Handle scan failure - usually not a problem, just no QR code in view
+        }
+        
+        function startScanning() {
+            if (isScanning) {
+                showResult('Scanner is already running!', 'info');
+                return;
+            }
+            
+            if (!connectionStatus) {
+                showResult('❌ Cannot start scanner: No database connection!', 'error');
+                return;
+            }
+            
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                rememberLastUsedCamera: true,
+                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+            };
+            
+            html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
+            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+            isScanning = true;
+            showResult('Scanner started! Point camera at QR code.', 'info');
+        }
+        
+        function stopScanning() {
+            if (html5QrcodeScanner && isScanning) {
+                html5QrcodeScanner.clear().then(() => {
+                    isScanning = false;
+                    showResult('Scanner stopped.', 'info');
+                }).catch(err => {
+                    console.error('Error stopping scanner:', err);
+                });
+            } else {
+                showResult('Scanner is not running.', 'info');
+            }
+        }
+        
+        async function processQRCode(qrCode, location, device) {
+            try {
+                showResult('Processing QR code...', 'info');
+                
+                const requestData = JSON.stringify({
+                    qrCode: qrCode,
+                    location: location,
+                    device: device
+                });
+                
+                // Use fetch with a timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: requestData,
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const responseText = await response.text();
+                let data;
+                
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    throw new Error('Server returned invalid response format');
+                }
+                
+                if (data.success) {
+                    showResult(`✅ SUCCESS: ${data.message}`, 'success');
+                    playSuccessSound();
+                    setTimeout(refreshStats, 1000);
+                } else {
+                    showResult(`❌ ERROR: ${data.message}`, 'error');
+                    playErrorSound();
+                }
+                
+            } catch (error) {
+                console.error('Error processing QR code:', error);
+                
+                if (error.name === 'AbortError') {
+                    showResult('❌ Request timeout. Check your internet connection.', 'error');
+                } else if (error.message.includes('Failed to fetch')) {
+                    showResult(`❌ Network error. QR code: "${qrCode}" could not be processed.`, 'error');
+                } else {
+                    showResult(`❌ Error: ${error.message}`, 'error');
+                }
+                
+                // Update connection status
+                connectionStatus = false;
+                document.getElementById('connectionStatus').innerHTML = '❌ Connection lost';
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+            }
+        }
+        
+        async function refreshStats() {
+            try {
+                const response = await fetch(API_URL + '?stats=true');
+                
+                if (!response.ok) {
+                    throw new Error('Stats request failed');
+                }
+                
+                const data = await response.json();
+                
+                document.getElementById('totalCount').textContent = data.used || '0';
+                document.getElementById('usedCount').textContent = data.used || '0';
+                document.getElementById('remainingCount').textContent = 'Active';
+                
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                document.getElementById('totalCount').textContent = 'Error';
+                document.getElementById('usedCount').textContent = 'Error';
+                document.getElementById('remainingCount').textContent = 'Check';
+            }
+        }
+        
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<div class="result ${type}">${message}</div>`;
+            
+            // Auto-hide after 5 seconds for info messages
+            if (type === 'info') {
+                setTimeout(() => {
+                    resultDiv.innerHTML = '';
+                }, 5000);
+            }
+        }
+        
+        // Optional: Sound feedback
+        function playSuccessSound() {
+            // Simple beep using Web Audio API
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = context.createOscillator();
+                const gain = context.createGain();
+                
+                oscillator.connect(gain);
+                gain.connect(context.destination);
+                
+                oscillator.frequency.setValueAtTime(800, context.currentTime);
+                gain.gain.setValueAtTime(0.1, context.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
+                
+                oscillator.start(context.currentTime);
+                oscillator.stop(context.currentTime + 0.3);
+            } catch (e) {
+                console.log('Sound not supported');
+            }
+        }
+        
+        function playErrorSound() {
+            // Lower pitched error sound
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = context.createOscillator();
+                const gain = context.createGain();
+                
+                oscillator.connect(gain);
+                gain.connect(context.destination);
+                
+                oscillator.frequency.setValueAtTime(300, context.currentTime);
+                gain.gain.setValueAtTime(0.1, context.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
+                
+                oscillator.start(context.currentTime);
+                oscillator.stop(context.currentTime + 0.5);
+            } catch (e) {
+                console.log('Sound not supported');
+            }
+        }
+    </script>
+</body>
+</html>
