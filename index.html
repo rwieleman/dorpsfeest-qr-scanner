@@ -107,20 +107,14 @@
         
         .buttons button {
             grid-column: span 1;
+            font-size: 14px;
+            padding: 12px 8px;
         }
         
         .buttons button:nth-child(1),
         .buttons button:nth-child(2) {
-            grid-column: span 1;
-        }
-        
-        .buttons button:nth-child(3),
-        .buttons button:nth-child(4),
-        .buttons button:nth-child(5),
-        .buttons button:nth-child(6) {
-            grid-column: span 1;
-            font-size: 14px;
-            padding: 12px;
+            font-size: 16px;
+            padding: 15px;
         }
         
         button {
@@ -230,7 +224,7 @@
             <button onclick="testQRProcessing()" class="btn-secondary">🧪 Test QR Processing</button>
             <button onclick="refreshStats()" class="btn-primary">🔄 Refresh Stats</button>
             <button onclick="checkCameraPermissions()" class="btn-secondary">📷 Check Camera</button>
-            <button onclick="switchCamera()" class="btn-secondary">🔄 Switch Camera</button>
+            <button onclick="testDirectSheetWrite()" class="btn-secondary">📝 Test Sheet Write</button>
         </div>
         
         <div id="cameraInfo" style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 12px; display: none;">
@@ -543,8 +537,38 @@
             const device = document.getElementById('deviceName').value || 'Test Device';
             
             showResult(`🧪 Testing QR processing with: ${testQR}`, 'info');
+            console.log('=== MANUAL TEST START ===');
+            console.log('This is a manual test to debug the POST request');
             
             await processQRCode(testQR, location, device);
+        }
+        
+        async function testDirectSheetWrite() {
+            if (!apiConnected) {
+                showResult('❌ Cannot test: API not connected', 'error');
+                return;
+            }
+            
+            showResult('🧪 Testing direct sheet write via Apps Script...', 'info');
+            
+            try {
+                // Call the testPost function in Apps Script
+                const response = await fetch(API_URL + '?action=test', {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                
+                const result = await response.text();
+                console.log('Direct test result:', result);
+                
+                showResult('✅ Check your Google Sheet and Apps Script logs!', 'success');
+                showResult('📝 Look for a new row with DIRECT_TEST_* in your sheet', 'info');
+                
+            } catch (error) {
+                console.error('Direct test error:', error);
+                showResult(`❌ Direct test failed: ${error.message}`, 'error');
+            }
         }
         
         async function checkCameraPermissions() {
