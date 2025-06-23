@@ -105,6 +105,24 @@
             margin-bottom: 20px;
         }
         
+        .buttons button {
+            grid-column: span 1;
+        }
+        
+        .buttons button:nth-child(1),
+        .buttons button:nth-child(2) {
+            grid-column: span 1;
+        }
+        
+        .buttons button:nth-child(3),
+        .buttons button:nth-child(4),
+        .buttons button:nth-child(5),
+        .buttons button:nth-child(6) {
+            grid-column: span 1;
+            font-size: 14px;
+            padding: 12px;
+        }
+        
         button {
             padding: 15px;
             border: none;
@@ -211,9 +229,28 @@
             <button onclick="stopScanning()" class="btn-danger">⏹️ Stop Scanner</button>
             <button onclick="testQRProcessing()" class="btn-secondary">🧪 Test QR Processing</button>
             <button onclick="refreshStats()" class="btn-primary">🔄 Refresh Stats</button>
+            <button onclick="checkCameraPermissions()" class="btn-secondary">📷 Check Camera</button>
+            <button onclick="switchCamera()" class="btn-secondary">🔄 Switch Camera</button>
+        </div>
+        
+        <div id="cameraInfo" style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 12px; display: none;">
+            <strong>Camera Debug Info:</strong>
+            <div id="cameraDetails"></div>
         </div>
         
         <div id="reader"></div>
+        
+        <div style="background: #e7f3ff; border: 1px solid #b3d7ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <h4 style="margin: 0 0 10px 0; color: #0066cc;">📱 Scanning Tips:</h4>
+            <ul style="margin: 0; padding-left: 20px; color: #0066cc;">
+                <li>Allow camera permissions when prompted</li>
+                <li>Use good lighting - avoid shadows</li>
+                <li>Hold phone steady and center QR code</li>
+                <li>Keep QR code flat and uncrumpled</li>
+                <li>Try different distances (6-12 inches works well)</li>
+                <li>If not working, try "Switch Camera" button</li>
+            </ul>
+        </div>
         
         <div id="result"></div>
     </div>
@@ -300,19 +337,49 @@
                 return;
             }
             
+            showResult('📱 Starting camera...', 'info');
+            
+            // Enhanced config for better QR detection
             const config = {
                 fps: 10,
-                qrbox: { width: 250, height: 250 },
+                qrbox: function(viewfinderWidth, viewfinderHeight) {
+                    // Make qr box responsive
+                    let minEdgePercentage = 0.7; // 70% of the smaller edge
+                    let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+                    let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+                    return {
+                        width: qrboxSize,
+                        height: qrboxSize
+                    };
+                },
                 rememberLastUsedCamera: true,
                 supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-                showTorchButtonIfSupported: true
+                showTorchButtonIfSupported: true,
+                aspectRatio: 1.0,
+                disableFlip: false, // Allow horizontal flip for front cameras
+                videoConstraints: {
+                    facingMode: "environment" // Try back camera first
+                }
             };
             
-            html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
-            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-            isScanning = true;
-            
-            showResult('📱 Scanner started! Point camera at QR code', 'info');
+            try {
+                html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
+                html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+                isScanning = true;
+                
+                showResult('📱 Camera started! Point at QR code and hold steady', 'info');
+                
+                // Add some tips after 5 seconds
+                setTimeout(() => {
+                    if (isScanning) {
+                        showResult('💡 Tips: Good lighting, hold steady, center QR code in the box', 'info');
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                console.error('Scanner start error:', error);
+                showResult(`❌ Camera error: ${error.message}. Try refreshing the page.`, 'error');
+            }
         }
         
         function stopScanning() {
@@ -327,10 +394,17 @@
         }
         
         function onScanSuccess(decodedText, decodedResult) {
+            console.log('QR Code detected!');
+            console.log('Decoded text:', decodedText);
+            console.log('Decoded result:', decodedResult);
+            
             if (!apiConnected) {
                 showResult('❌ API not connected - cannot process scan', 'error');
                 return;
             }
+            
+            // Show what was scanned
+            showResult(`🔍 QR Code detected: "${decodedText}" - Processing...`, 'info');
             
             const location = document.getElementById('location').value;
             const device = document.getElementById('deviceName').value || 'Unknown Device';
@@ -339,7 +413,10 @@
         }
         
         function onScanFailure(error) {
-            // Ignore scan failures - just means no QR code in view
+            // Only log actual errors, not "no QR code found" messages
+            if (error && !error.includes('NotFoundException') && !error.includes('No QR code found')) {
+                console.log('Scan error:', error);
+            }
         }
         
         async function processQRCode(qrCode, location, device) {
@@ -468,6 +545,90 @@
             showResult(`🧪 Testing QR processing with: ${testQR}`, 'info');
             
             await processQRCode(testQR, location, device);
+        }
+        
+        async function checkCameraPermissions() {
+            try {
+                showResult('🔍 Checking camera permissions...', 'info');
+                
+                // Check if getUserMedia is supported
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showResult('❌ Camera not supported in this browser', 'error');
+                    return;
+                }
+                
+                // Get available cameras
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                document.getElementById('cameraInfo').style.display = 'block';
+                document.getElementById('cameraDetails').innerHTML = `
+                    <div>📷 Found ${videoDevices.length} camera(s)</div>
+                    ${videoDevices.map((device, index) => 
+                        `<div>Camera ${index + 1}: ${device.label || 'Unknown Camera'}</div>`
+                    ).join('')}
+                `;
+                
+                // Test camera access
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" } 
+                });
+                
+                // Stop the stream immediately
+                stream.getTracks().forEach(track => track.stop());
+                
+                showResult('✅ Camera permissions OK!', 'success');
+                
+            } catch (error) {
+                console.error('Camera check error:', error);
+                showResult(`❌ Camera error: ${error.message}`, 'error');
+                
+                if (error.name === 'NotAllowedError') {
+                    showResult('📱 Please allow camera access in your browser settings', 'info');
+                } else if (error.name === 'NotFoundError') {
+                    showResult('📱 No camera found on this device', 'error');
+                }
+            }
+        }
+        
+        function switchCamera() {
+            if (!isScanning) {
+                showResult('ℹ️ Start scanner first, then use switch camera', 'info');
+                return;
+            }
+            
+            if (html5QrcodeScanner) {
+                // Stop current scanner
+                html5QrcodeScanner.clear().then(() => {
+                    // Start with different camera preference
+                    setTimeout(() => {
+                        const config = {
+                            fps: 10,
+                            qrbox: function(viewfinderWidth, viewfinderHeight) {
+                                let minEdgePercentage = 0.7;
+                                let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+                                let qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+                                return {
+                                    width: qrboxSize,
+                                    height: qrboxSize
+                                };
+                            },
+                            rememberLastUsedCamera: false, // Don't remember to allow switching
+                            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+                            showTorchButtonIfSupported: true,
+                            videoConstraints: {
+                                facingMode: "user" // Try front camera
+                            }
+                        };
+                        
+                        html5QrcodeScanner = new Html5QrcodeScanner("reader", config, false);
+                        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+                        showResult('🔄 Switched camera - try scanning again', 'info');
+                    }, 1000);
+                }).catch(err => {
+                    console.error('Error switching camera:', err);
+                });
+            }
         }
         
         function playSound(success) {
